@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sonda — Analizador de capturas de red con IA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="local-runtime.js"></script>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect x="1" y="1" width="32" height="32" rx="7" fill="var(--accent)"/><path d="M5 20h5l3-9 4 15 3-11 2 5h7" fill="none" stroke="var(--accent-ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div><h1>Sonda Agent</h1><p>Análisis de capturas de red con IA</p></div>
+    </div>
+    <div class="file-meta" id="fileMeta" hidden><strong id="fileName"></strong><span id="fileInfo"></span></div>
+    <button class="btn" id="btnReport" hidden>Exportar informe</button>
+    <button class="btn primary" id="btnOpen">Abrir pcap</button>
+    <input type="file" id="fileInput" accept=".pcap,.pcapng,.cap,.dmp,application/vnd.tcpdump.pcap" hidden>
+  </header>
+  <nav class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-tab="resumen" aria-selected="true">Resumen</button>
+    <button role="tab" data-tab="paquetes" aria-selected="false">Paquetes</button>
+    <button role="tab" data-tab="conversaciones" aria-selected="false">Conversaciones</button>
+    <button role="tab" data-tab="flujo" aria-selected="false" id="tabFollow" hidden>Flujo TCP</button>
+    <button role="tab" data-tab="archivos" aria-selected="false">Archivos<span class="count" id="cntFiles">0</span></button>
+    <button role="tab" data-tab="hallazgos" aria-selected="false">Hallazgos<span class="count" id="cntFind">0</span></button>
+    <button role="tab" data-tab="incidente" aria-selected="false">Incidente</button>
+    <button role="tab" data-tab="reglas" aria-selected="false">Reglas Snort<span class="count" id="cntRules">0</span></button>
+    <button role="tab" data-tab="chat" class="tab-chat" aria-selected="false">Agente</button>
+  </nav>
+  <main class="layout" id="layout">
+    <section class="content" id="content">
+      <div id="emptyState" class="empty">
+        <div class="drop" id="drop">
+          <svg width="72" height="48" viewBox="0 0 72 48" aria-hidden="true"><g fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"><path d="M2 30h12l5-18 7 32 6-24 4 10h8"/><path d="M50 30h20" stroke="var(--accent)"/><circle cx="50" cy="30" r="3" fill="var(--accent)" stroke="none"/></g></svg>
+          <h2>Arrastra aquí un archivo .pcap o .pcapng</h2>
+          <p>La captura se procesa en tu navegador. Al agente solo le llegan los resúmenes y paquetes que consulta para responderte.</p>
+          <div class="actions">
+            <button class="btn primary" id="btnOpen2">Abrir pcap</button>
+            <button class="btn" id="btnSample">Probar con una captura de ejemplo</button>
+          </div>
+        </div>
+        <div class="capabilities">
+          <div><h3>Lee la captura</h3><p>Ethernet, VLAN, IPv4/IPv6, TCP, UDP, ICMP, ARP, DNS, HTTP, TLS (SNI), FTP, SMB2 y SSH. Reconstruye flujos TCP y extrae los archivos transferidos con su SHA-256.</p></div>
+          <div><h3>Detecta amenazas</h3><p>Escaneos, fuerza bruta, túneles DNS, beaconing, credenciales en claro, ataques web y ARP spoofing, mapeados a MITRE ATT&amp;CK en una línea de tiempo por fases.</p></div>
+          <div><h3>Escribe reglas Snort</h3><p>Propone reglas, las prueba contra tus paquetes y las exporta como local.rules.</p></div>
+          <div><h3>Responde preguntas</h3><p>El agente consulta la captura con herramientas y te explica qué ocurrió.</p></div>
+        </div>
+      </div>
+      <div id="progressState" class="progress" hidden>
+        <h2 id="progTitle" style="font-weight:600;font-size:20px;margin:0">Leyendo captura…</h2>
+        <div class="bar"><i id="progBar"></i></div>
+        <div class="muted" id="progText"></div>
+        <button class="btn" id="btnCancelLoad" hidden style="margin-top:14px">Cancelar</button>
+      </div>
+
+      <div class="panel" id="p-resumen"></div>
+      <div class="panel" id="p-paquetes"></div>
+      <div class="panel" id="p-conversaciones"></div>
+      <div class="panel" id="p-flujo"></div>
+      <div class="panel" id="p-archivos"></div>
+      <div class="panel" id="p-hallazgos"></div>
+      <div class="panel" id="p-incidente"></div>
+      <div class="panel" id="p-reglas"></div>
+    </section>
+
+    <aside class="chat" id="chat" aria-label="Agente">
+      <div class="chat-head">
+        <h2>Agente</h2>
+        <span class="status" id="aiStatus"><span class="dot" style="background:var(--muted)"></span>Conectando…</span>
+        <button class="btn ghost small" id="btnClear" title="Borrar conversación">Nueva</button>
+      </div>
+      <div class="msgs" id="msgs" aria-live="polite"></div>
+      <form class="chat-form" id="chatForm">
+        <label class="sr" for="chatInput">Mensaje para el agente</label>
+        <textarea id="chatInput" rows="1" placeholder="Pregunta sobre la captura…"></textarea>
+        <button class="btn primary" id="btnSend" type="submit">Enviar</button>
+      </form>
+    </aside>
+  </main>
+</div>
+<dialog class="dlg" id="reportDlg" aria-labelledby="reportDlgTitle">
+  <form id="reportForm" method="dialog">
+    <h2 id="reportDlgTitle">Exportar informe</h2>
+    <p class="hint">Estos datos van en la portada y en la cabecera de cada página. Se recuerdan en este navegador.</p>
+    <div class="fields">
+      <label>Título<input id="rTitle" placeholder="Informe de análisis de tráfico de red" maxlength="120"></label>
+      <label>Caso o referencia<input id="rCase" placeholder="INC-2026-0001" maxlength="60"></label>
+      <label>Organización<input id="rOrg" maxlength="120"></label>
+      <label>Analista<input id="rAnalyst" maxlength="120"></label>
+      <label>Clasificación (TLP)<select id="rTlp"></select></label>
+    </div>
+    <label class="check"><input type="checkbox" id="rInterp"> Incluir la valoración del agente de IA <span class="hint" id="rInterpHint"></span></label>
+    <div class="row-actions">
+      <button class="btn primary" value="pdf">Descargar PDF</button>
+      <button class="btn" value="zip">Paquete de entrega (.zip)</button>
+      <button class="btn" value="md">Markdown</button>
+      <button class="btn" value="csv">IoC en CSV</button>
+      <button class="btn" value="stix">IoC en STIX 2.1</button>
+      <button class="btn ghost" value="cancel" formnovalidate>Cerrar</button>
+    </div>
+    <p class="hint" id="rStatus" role="status"></p>
+  </form>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
+<script src="engine.js"></script>
+<script src="report.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

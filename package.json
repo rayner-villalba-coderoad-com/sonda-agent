@@ -1,0 +1,13 @@
+{
+  "name": "sonda",
+  "version": "1.0.0",
+  "description": "Agente de IA para analizar capturas pcap, detectar amenazas y crear reglas Snort",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "ejemplo": "node scripts/generar-ejemplo.js",
+    "analizar": "node scripts/analizar.js"
+  },
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}
